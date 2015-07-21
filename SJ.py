@@ -230,11 +230,12 @@ class SJ(Hook):
             return False
 
     def check_already_downloaded(self, title):
+        plexfound = False
         if self.getConfig("checkplex"):
-            return self.check_plex_for_episode(title)
-        else:
-            storage = self.getStorage(title)
-            return storage == 'downloaded'
+            plexfound = self.check_plex_for_episode(title)
+
+        storage = self.getStorage(title)
+        return storage == 'downloaded' or plexfound
 
     def send_package(self, title, link):
         if self.check_already_downloaded(title):
