@@ -215,13 +215,13 @@ class SJ(Hook):
         search_title = title[0:sepos - 1].replace(".", " ")
         from plexapi.server import PlexServer
         from plexapi.exceptions import NotFound
-        plex = PlexServer(self.plexurl)
+        plex = PlexServer(self.getConfig("plexurl"))
 
         try:
             episodes = plex.library.get(search_title).episodes()
 
             for ep in episodes:
-                if ep.index == ep:
+                if ep.index == episode:
                     if season is not None and ep.season().index == season:
                         return True
                     else:
@@ -230,7 +230,7 @@ class SJ(Hook):
             return False
 
     def check_already_downloaded(self, title):
-        if self.checkplex:
+        if self.getConfig("checkplex"):
             return self.check_plex_for_episode(title)
         else:
             storage = self.getStorage(title)
