@@ -76,7 +76,9 @@ class SJ(Hook):
                   ("hoster", """ul;so;fm;cz;alle""", "ul.to, filemonkey, cloudzer, share-online oder alle", "ul"),
                   ("pushoverapi", "str", "deine pushoverapi api", ""),
                   ("queue", "bool", "Direkt in die Warteschlange?", "False"),
-                  ("pushbulletapi","str","Your Pushbullet-API key","")]
+                  ("pushbulletapi","str","Your Pushbullet-API key",""),
+                  ("checkplex","bool","Suche nach Episoden in Plex?","False"),
+                  ("plexurl","str","Plex url","http://localhost:32400")]
     __author_name__ = ("gutz-pilz","zapp-brannigan")
     __author_mail__ = ("unwichtig@gmail.com","")
     
@@ -196,10 +198,46 @@ class SJ(Hook):
             self.send_package(title,items) if len(items) > 0 else True
         else:
             self.core.log.error("SJFetcher - Ooops, das haette nicht passieren duerfen!")
-                 
+
+    def check_plex_for_episode(self, title):
+        if re.search(r"S[0-9]+E[0-9]+", title) is not None:
+            sepos = re.search(r"S[0-9]+E[0-9]+", title).start(0)
+            season = int(re.search(r"S[0-9]+", title).group(0).replace("S", ""))
+            episode = int(re.search(r"E[0-9]+", title).group(0).replace("E", ""))
+        elif re.search(r"E[0-9]+", title) is not None:
+            sepos = re.search(r"E[0-9]+", title).start(0)
+            season = None
+            episode = int(re.search(r"E[0-9]+", title).group(0).replace("E", ""))
+        else:
+            self.core.log.error("SJFetcher - Couldn't find an season or episode substring for \"" + title + "\"!")
+            return False
+
+        search_title = title[0:sepos - 1].replace(".", " ")
+        from plexapi.server import PlexServer
+        from plexapi.exceptions import NotFound
+        plex = PlexServer(self.plexurl)
+
+        try:
+            episodes = plex.library.get(search_title).episodes()
+
+            for ep in episodes:
+                if ep.index == ep:
+                    if season is not None and ep.season().index == season:
+                        return True
+                    else:
+                        return False
+        except NotFound:
+            return False
+
+    def check_already_downloaded(self, title):
+        if self.checkplex:
+            return self.check_plex_for_episode(title)
+        else:
+            storage = self.getStorage(title)
+            return storage == 'downloaded'
+
     def send_package(self, title, link):
-        storage = self.getStorage(title)
-        if storage == 'downloaded':
+        if self.check_already_downloaded(title):
             self.core.log.debug("SJFetcher - " + title + " already downloaded")
         else:
             self.core.log.info("SJFetcher - NEW EPISODE: " + title)
